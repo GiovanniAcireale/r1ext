@@ -2,45 +2,56 @@ const vscode = require('vscode');
 const { spawn } = require('child_process');
 
 /**
- * Runs `ollama generate -m <model> <prompt>` as a child process
- * @param {string} model - e.g. "deepseek-r1:latest"
+ * Spawns `ollama run <model>` and writes `prompt` to stdin.
+ * Streams each line of Ollama's response via a callback.
+ * 
+ * @param {string} model - e.g. "deepseek-r1:7b"
  * @param {string} prompt - The user’s input
+ * @param {function} onLine - Callback for each line of output
  */
-function runOllama(model, prompt) {
+function runOllamaStream(model, prompt, onLine) {
   return new Promise((resolve, reject) => {
-    let outputData = '';
+    let buffer = '';
 
-    // IMPORTANT: If you're on Windows and `ollama` isn't in your PATH,
-    // you might need the full path. e.g. 'C:\\path\\to\\ollama.exe'
-    const child = spawn('ollama', ['generate', '-m', model, prompt]);
+    const child = spawn('ollama', ['run', model]);
 
-    // Log any standard output
     child.stdout.on('data', (data) => {
-      console.log('[ollama stdout]:', data.toString());
-      outputData += data.toString();
+      const chunk = data.toString();
+      buffer += chunk;
+
+      let lines = buffer.split(/\r?\n/);
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        onLine(line);
+      }
     });
 
-    // Log any standard errors (this is crucial!)
     child.stderr.on('data', (data) => {
       console.error('[ollama stderr]:', data.toString());
     });
 
-    // If spawning the process itself fails (like command not found)
     child.on('error', (err) => {
       console.error('[ollama spawn error]:', err);
       reject(err);
     });
 
-    // When the command finishes, check the exit code
     child.on('close', (code) => {
       console.log('[ollama close] exited with code:', code);
+
+      if (buffer.trim()) {
+        onLine(buffer);
+      }
+
       if (code === 0) {
-        // Success
-        resolve(outputData.trim());
+        resolve();
       } else {
         reject(new Error(`ollama exited with code: ${code}`));
       }
     });
+
+    child.stdin.write(prompt + '\n');
+    child.stdin.end();
   });
 }
 
@@ -48,15 +59,12 @@ function runOllama(model, prompt) {
  * @param {vscode.ExtensionContext} context
  */
 function activate(context) {
-  // This only shows once when your extension is activated
   console.log('r1ext is now active!');
 
-  // Register a command in package.json under contributes.commands
-  const disposable = vscode.commands.registerCommand('r1ext.helloWorld', () => {
-    // Quick “Hello World” message
-    vscode.window.showInformationMessage('Hello World from r1Extension!');
+  // Note the new command ID: 'r1ext.askR1'
+  const disposable = vscode.commands.registerCommand('r1ext.askR1', () => {
+    vscode.window.showInformationMessage('Ask r1 command initialized!');
 
-    // Create the webview panel
     const panel = vscode.window.createWebviewPanel(
       'deepSeek',
       'DeepSeek Chat',
@@ -64,25 +72,23 @@ function activate(context) {
       { enableScripts: true }
     );
 
-    // Load the HTML content
     panel.webview.html = getWebviewContent();
 
-    // Listen for messages from webview
     panel.webview.onDidReceiveMessage(async (message) => {
+      const userPrompt = message.message.trim();
+      if (!userPrompt) return;
+
       try {
-        console.log('[Extension] Received message from webview:', message.message);
+        panel.webview.postMessage({ event: 'start-stream' });
 
-        // Attempt to generate text via Ollama
-        const response = await runOllama('deepseek-r1:latest', message.message);
+        await runOllamaStream('deepseek-r1:7b', userPrompt, (line) => {
+          panel.webview.postMessage({ event: 'partial', text: line });
+        });
 
-        console.log('[Extension] Ollama response:', response);
-
-        // Send the generated response back to the webview
-        panel.webview.postMessage({ message: response });
+        panel.webview.postMessage({ event: 'done' });
       } catch (error) {
-        // This block is triggered if runOllama threw an error
         console.error('[Extension] Error in Ollama request:', error);
-        panel.webview.postMessage({ message: 'Error processing your request.' });
+        panel.webview.postMessage({ event: 'error', text: 'Error processing your request.' });
       }
     });
   });
@@ -90,9 +96,6 @@ function activate(context) {
   context.subscriptions.push(disposable);
 }
 
-/**
- * Provide the HTML with a textarea, a Send button, and a place to show responses.
- */
 function getWebviewContent() {
   return `
     <!DOCTYPE html>
@@ -100,41 +103,123 @@ function getWebviewContent() {
     <head>
       <meta charset="UTF-8">
       <style>
-        body { font-family: Arial, sans-serif; margin: 1rem; }
-        #prompt { width: 100%; box-sizing: border-box; }
-        #response { border: 1px solid #ccc; padding: 0.5rem; margin-top: 1rem; max-height: 400px; overflow-y: auto; }
+        body {
+          background: #1e1e1e;
+          color: #d4d4d4;
+          font-family: Consolas, "Segoe UI", Tahoma, sans-serif;
+          margin: 1rem;
+        }
+        h2 {
+          color: #dcdcaa;
+        }
+        .chat-container {
+          display: flex;
+          flex-direction: column;
+          height: 80vh;
+        }
+        #prompt {
+          background: #252526;
+          color: #d4d4d4;
+          border: 1px solid #3c3c3c;
+          border-radius: 4px;
+          padding: 0.5rem;
+          margin-bottom: 0.5rem;
+          width: 100%;
+          box-sizing: border-box;
+          resize: vertical;
+        }
+        button {
+          background: #0e639c;
+          color: #ffffff;
+          border: none;
+          border-radius: 4px;
+          padding: 0.5rem 1rem;
+          cursor: pointer;
+          font-size: 0.95rem;
+          margin-bottom: 1rem;
+        }
+        button:hover {
+          background: #1177bb;
+        }
+        #response {
+          background: #252526;
+          border: 1px solid #3c3c3c;
+          border-radius: 4px;
+          padding: 0.5rem;
+          max-height: 100%;
+          overflow-y: auto;
+          flex: 1;
+        }
+        .message {
+          margin-bottom: 0.75rem;
+          line-height: 1.4;
+        }
+        .message strong {
+          color: #4ec9b0;
+        }
+        .thinking {
+          font-style: italic;
+          color: #888;
+        }
       </style>
     </head>
     <body>
-      <h2>DeepSeek Chat</h2>
-      <textarea id="prompt" rows="4" placeholder="Type your message..."></textarea><br />
-      <button onclick="send()">Send</button>
-      <div id="response"></div>
+      <div class="chat-container">
+        <h2>DeepSeek-r1</h2>
+        <textarea id="prompt" rows="4" placeholder="Type your message..."></textarea>
+        <button onclick="send()">Send</button>
+        <div id="response"></div>
+      </div>
       <script>
         const vscode = acquireVsCodeApi();
-        const prompt = document.getElementById('prompt');
+        const promptField = document.getElementById('prompt');
         const responseDiv = document.getElementById('response');
 
         function send() {
-          const userInput = prompt.value;
+          const userInput = promptField.value.trim();
           if (!userInput) return;
+
+          responseDiv.innerHTML += '<p class="message"><strong>You:</strong> ' + userInput + '</p>';
+          scrollToBottom();
+
           vscode.postMessage({ message: userInput });
-          responseDiv.innerHTML += '<p><strong>You:</strong> ' + userInput + '</p>';
-          prompt.value = '';
+          promptField.value = '';
         }
 
-        // Handle messages from the extension
         window.addEventListener('message', event => {
-          const msg = event.data.message;
-          responseDiv.innerHTML += '<p><strong>DeepSeek:</strong> ' + msg + '</p>';
+          const { event: evtType, text } = event.data;
+
+          switch (evtType) {
+            case 'start-stream':
+              responseDiv.innerHTML += '<p class="message thinking">Thinking...</p>';
+              scrollToBottom();
+              break;
+            case 'partial':
+              const thinkingNodes = responseDiv.querySelectorAll('.thinking');
+              thinkingNodes.forEach(node => node.remove());
+              responseDiv.innerHTML += '<p class="message">' + text + '</p>';
+              scrollToBottom();
+              break;
+            case 'done':
+              break;
+            case 'error':
+              responseDiv.innerHTML += '<p class="message"><strong>Error:</strong> ' + text + '</p>';
+              scrollToBottom();
+              break;
+            default:
+              break;
+          }
         });
+
+        function scrollToBottom() {
+          responseDiv.scrollTop = responseDiv.scrollHeight;
+        }
       </script>
     </body>
     </html>
   `;
 }
 
-// Deactivate if needed
 function deactivate() {}
 
 module.exports = {

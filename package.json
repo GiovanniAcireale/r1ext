@@ -8,14 +8,14 @@
   },
   "categories": ["Other"],
   "activationEvents": [
-    "onCommand:r1ext.helloWorld"
+    "onCommand:r1ext.askR1"
   ],
   "main": "./extension.js",
   "contributes": {
     "commands": [
       {
-        "command": "r1ext.helloWorld",
-        "title": "Hello World"
+        "command": "r1ext.askR1",
+        "title": "Ask r1"
       }
     ]
   },
