@@ -6,7 +6,9 @@
   "engines": {
     "vscode": "^1.70.0"
   },
-  "categories": ["Other"],
+  "categories": [
+    "Other"
+  ],
   "activationEvents": [
     "onCommand:r1ext.askR1"
   ],
@@ -29,5 +31,8 @@
     "@types/vscode": "^1.70.0",
     "@vscode/test-electron": "^2.4.1",
     "eslint": "^8.0.0"
+  },
+  "dependencies": {
+    "vsce": "^1.97.0"
   }
 }

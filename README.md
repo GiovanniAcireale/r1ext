@@ -1,65 +1,50 @@
 # r1ext README
 
-This is the README for your extension "r1ext". After writing up a brief description, we recommend including the following sections.
+**r1ext** is a Visual Studio Code extension that creates an **integrated chat interface** for interacting with a **local DeepSeek R1** model via the **Ollama** CLI. It listens for user prompts in a custom webview and streams the model’s responses back in real time.
 
 ## Features
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
+- **In-Editor Chat**: Opens a dedicated panel (webview) where you can type questions or statements.
+- **Local LLM Integration**: Uses the `ollama` command-line tool to run the `deepseek-r1:7b` (or another specified) model locally.
+- **Streaming Output**: Displays generated text live, line by line, instead of waiting for the model to finish.
+- **Dark-Themed UI**: Designed to blend in with VS Code’s dark color palette.
 
-For example if there is an image subfolder under your extension project workspace:
+### How It Works
 
-\!\[feature X\]\(images/feature-x.png\)
+1. **Command Activation**: From the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P`), run **“Ask r1”**.
+2. **Enter Prompt**: Type your question/command in the text box, then click **Send**.
+3. **View Response**: The model’s response streams back in real time, appearing in the lower panel.
 
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+*(Add a screenshot of your chat panel if you have one.)*
 
 ## Requirements
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+1. **Ollama** must be installed and available on your system’s PATH.  
+   - [Ollama GitHub](https://github.com/jmorganca/ollama)
+2. **DeepSeek R1 Model** (e.g. `deepseek-r1:7b`) must be accessible to Ollama.  
+   - For example, `ollama run deepseek-r1:7b` should work in your terminal without error.
+3. **VS Code 1.70+**.
 
 ## Extension Settings
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
-
-For example:
-
-This extension contributes the following settings:
-
-* `myExtension.enable`: Enable/disable this extension.
-* `myExtension.thing`: Set to `blah` to do something.
+Currently, **r1ext** does not introduce new settings. In future releases, you might see configuration options for:
+- **Model Selection**: Switch between different local models.
+- **Streaming Behavior**: Adjust how partial responses are displayed.
 
 ## Known Issues
 
-Calling out known issues can help limit users opening duplicate issues against your extension.
+- **Model Compatibility**: Older versions of Ollama may not support all flags, so this extension uses the interactive `ollama run <model>` approach. If you encounter unknown flags, update Ollama or switch to a model/command syntax your version supports.
+- **Large Outputs**: Very lengthy responses may clutter the output box. Consider clearing it manually or restarting your chat session as needed.
 
 ## Release Notes
 
-Users appreciate release notes as you update your extension.
+### 0.0.1
+- Initial release with streaming chat interface to DeepSeek R1 via Ollama.
 
-### 1.0.0
+## For More Information
 
-Initial release of ...
+- [VS Code Extension API](https://code.visualstudio.com/api)
+- [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
+- [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
 
-### 1.0.1
-
-Fixed issue #.
-
-### 1.1.0
-
-Added features X, Y, and Z.
-
----
-
-## Working with Markdown
-
-You can author your README using Visual Studio Code.  Here are some useful editor keyboard shortcuts:
-
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux)
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux)
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets
-
-## For more information
-
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
-
-**Enjoy!**
+**Enjoy chatting with your local LLM!**
